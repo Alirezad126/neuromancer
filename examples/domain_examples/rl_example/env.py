@@ -63,6 +63,8 @@ class SimpleBuildingEnv(gym.Env):
         self.t = 0
         self.x = self.simulator.get_x0()
         self.d = self.simulator.get_D(1)
+        self.min_temp = self.min_temp+(self.max_temp-self.min_temp)*np.random.rand()
+        self.max_temp = self.min_temp + 2.0
         obs = self.build_state()
 
         return obs
