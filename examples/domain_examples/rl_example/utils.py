@@ -91,6 +91,7 @@ def training_loop(env, agent, replay_buffer, exploration, expl_noise, batch_size
     print("Training completed.")
     return eval_reward_hist, eval_cost_hist
 
+
 def evaluate_consecutive_episodes(env, agent, horizon, min_temp, max_temp, random_seed=10):
     """Evaluate the agent in consecutive episodes and return evaluation history and plots."""
 
@@ -104,14 +105,14 @@ def evaluate_consecutive_episodes(env, agent, horizon, min_temp, max_temp, rando
     eval_hist_dist = []
     obs_hist = []
 
+    env.reset()
     np_refs = psl.signals.step(horizon + 2, 1, min=min_temp, max=max_temp, randsteps=5)
-    obs = env.reset()
-
     env.y_min = np_refs[0]
     env.y_max = env.y_min + 2
     eval_hist_ymin.append(env.y_min)
     eval_hist_ymax.append(env.y_max)
     obs = env.build_state()
+    eval_hist_outputs.append(env.y)
 
     for _ in range(horizon):
         action = agent.select_action(obs)
@@ -122,48 +123,70 @@ def evaluate_consecutive_episodes(env, agent, horizon, min_temp, max_temp, rando
         eval_hist_cost.append(cost)
         eval_hist_actions.append(action)
         eval_hist_outputs.append(env.y)
-        eval_hist_dist.append(env.d)
         eval_hist_ymin.append(env.y_min)
         eval_hist_ymax.append(env.y_max)
-        obs_hist.append(obs)
+        denormalized_obs = torch.tensor(obs) * env.state_stds + env.state_means
+        obs_hist.append(denormalized_obs)
 
         env.y_min = np_refs[_ + 1]
         env.y_max = env.y_min + 2
 
         obs = next_obs
 
-    outputs = {"x0": env.trajectory["x0"], "D": env.trajectory["D"], "ref": np_refs}
+    outputs = {"x0": env.trajectory["x0"], "D": env.trajectory["D"][0:horizon], "ref": np_refs, "y": eval_hist_outputs,
+               "rewards": eval_hist_rewards, "costs": eval_hist_cost, "actions": eval_hist_actions,
+               "obs_hist": obs_hist}
+    return outputs
 
+
+import matplotlib.pyplot as plt
+import numpy as np
+def plot(eval_hist_outputs, eval_hist_ymin, eval_hist_ymax, eval_hist_actions, eval_hist_dist, trajectories):
     # Generate plots
     plt.figure(figsize=(20, 5))
-    plt.plot([i[0][0] for i in eval_hist_outputs], label="Eval History Outputs", color='blue', linestyle='-', linewidth=6)
+    plt.plot([i[0][0] for i in eval_hist_outputs], label="Controlled Zone Temperature (RL)", color='blue', linestyle='-',
+             linewidth=6, alpha=0.5)
+
+    plt.plot([i[0].cpu().detach() for i in trajectories['y'][0]], label="Controlled Zone Temperature (DPC)", color='red', linestyle='-',
+             linewidth=6 , alpha=0.5)
+
+
     x = np.arange(len(eval_hist_ymin) - 1)
     plt.step(x, np.ravel(eval_hist_ymin[:-1]), where='post', label="Y Min", color='green', linestyle='--')
     plt.step(x, np.ravel(eval_hist_ymax[:-1]), where='post', label="Y Max", color='red', linestyle='--')
     plt.fill_between(x, np.ravel(eval_hist_ymin[:-1]), np.ravel(eval_hist_ymax[:-1]),
                      where=(np.ravel(eval_hist_ymax[:-1])) > np.ravel(eval_hist_ymin[:-1]),
-                     interpolate=True, color='yellow', alpha=0.3, label='Region Between Y Min and Y Max')
+                     interpolate=True, color='yellow', alpha=0.3, label='Temperature Valid Region')
     plt.xlabel("Index", fontsize=10)
     plt.ylabel("Values", fontsize=10)
-    plt.title("Evaluation History Outputs with Y Min and Y Max", fontsize=12)
+    plt.title("Evaluation of DPC and RL models", fontsize=20)
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.legend(fontsize=12, loc='best')
     plt.tight_layout()
 
     plt.figure(figsize=(20, 5))
-    plt.plot([(i[0][0]) * 5000.0 for i in eval_hist_actions], label="Eval History Actions", color='purple', linestyle='-', marker='x')
+    plt.plot([(i[0][0]) * 5000.0 for i in eval_hist_actions],
+         label="RL Actions", color='blue',
+         linestyle='-', linewidth=6, alpha=0.5)
+
+    plt.plot([i.cpu().detach() for i in trajectories['u'][0]],
+             label="DPC Actions", color='red',
+             linestyle='-', linewidth=6, alpha=0.5)
+
+
+
     plt.ylim(0, 5000)
     plt.xlabel("Index", fontsize=14)
     plt.ylabel("Actions", fontsize=14)
-    plt.title("Evaluation History Actions", fontsize=16)
+    plt.title("Actions", fontsize=20)
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.legend(fontsize=12, loc='upper right')
     plt.tight_layout()
 
     plt.figure(figsize=(20, 5))
-    plt.plot([i[0][0] for i in eval_hist_dist], label="Disturbance Channel 1", color='red', linestyle='-', marker='x')
-    plt.plot([i[0][1] for i in eval_hist_dist], label="Disturbance Channel 2", color='green', linestyle='-', marker='x')
-    plt.plot([i[0][2] for i in eval_hist_dist], label="Disturbance Channel 3", color='blue', linestyle='-', marker='x')
+    plt.plot([i[0] for i in eval_hist_dist], label="Outdoor Air Temperature", color='red', linestyle='-',linewidth=6)
+    plt.plot([i[1] for i in eval_hist_dist], label="Occupant Heat Load", color='green', linestyle='-',linewidth=6)
+    plt.plot([i[2] for i in eval_hist_dist], label="Solar Radiation", color='blue', linestyle='-',linewidth=6)
     plt.xlabel("Index", fontsize=14)
     plt.ylabel("Disturbances", fontsize=14)
     plt.title("Evaluation History Disturbances", fontsize=16)
@@ -172,5 +195,3 @@ def evaluate_consecutive_episodes(env, agent, horizon, min_temp, max_temp, rando
     plt.tight_layout()
 
     plt.show()
-
-    return outputs, eval_hist_rewards, eval_hist_cost, eval_hist_actions

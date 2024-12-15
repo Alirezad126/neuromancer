@@ -114,6 +114,7 @@ class SimpleBuildingEnv(gym.Env):
         """Reset the environment to the initial state. Returns the initial state of the environment."""
         self.trajectory = self.generate_trajectory()
         self.x = self.trajectory["x0"]
+        self.y = self.x[3].reshape(1,1)
         self.d = self.trajectory["D"][0]  # Start with the first disturbance
         self.t = 0
         self.prev_action = 0.0
@@ -155,13 +156,13 @@ class SimpleBuildingEnv(gym.Env):
         for _ in range(self.samples):
             # Generate random initial state and disturbances
             x0 = torch.tensor(self.simulator.get_x0(), dtype=torch.float32)
-            D = torch.tensor(self.simulator.get_D(self.timesteps), dtype=torch.float32)
+            D = torch.tensor(self.simulator.get_D(2000), dtype=torch.float32)
 
             # Define random temperature range
             min_temp = self.def_min_temp + (self.def_max_temp - self.def_min_temp) * np.random.rand()
             max_temp = min_temp + 2.0
 
-            for t in range(self.timesteps):
+            for t in range(2000):
                 state = torch.cat([x0, D[t], torch.tensor([min_temp, max_temp], dtype=torch.float32)])
                 all_states.append(state)
 
