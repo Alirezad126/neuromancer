@@ -225,6 +225,9 @@ class PD_DDPG:
         """
         Load model weights.
         """
-        self.actor.load_state_dict(torch.load(f'{directory}/{filename}_actor.pth'))
-        self.critic.load_state_dict(torch.load(f'{directory}/{filename}_critic.pth'))
-        self.cost.load_state_dict(torch.load(f'{directory}/{filename}_cost.pth'))
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        load_path = lambda model_type: torch.load(f'{directory}/{filename}_{model_type}.pth', map_location=device)
+    
+        self.actor.load_state_dict(load_path('actor'))
+        self.critic.load_state_dict(load_path('critic'))
+        self.cost.load_state_dict(load_path('cost'))
