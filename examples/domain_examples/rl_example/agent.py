@@ -140,7 +140,7 @@ class PD_DDPG:
         action = self.actor(state).cpu().data.numpy().reshape(1, 1) * self.max_action
         return np.clip(action, 0, self.max_action)
 
-    def train(self, replay_buffer, iterations, batch_size=100, discount_Q=0.99, discount_C=0.0, tau=0.005, policy_freq=2):
+    def train(self, replay_buffer, iterations, batch_size=100, discount=0.99, tau=0.005, policy_freq=2):
         """
         Train the PD-DDPG agent.
 
@@ -167,8 +167,8 @@ class PD_DDPG:
             next_action = self.actor_target(next_state)
             target_Q = self.critic_target(next_state, next_action)
             target_C = self.cost_target(next_state, next_action)
-            target_Q = reward + ((1 - done) * discount_Q * target_Q).detach()
-            target_C = cost + ((1 - done) * discount_C * target_C).detach()
+            target_Q = reward + ((1 - done) * discount * target_Q).detach()
+            target_C = cost + ((1 - done) * discount * target_C).detach()
 
             # Update critic
             current_Q = self.critic(state, action)
