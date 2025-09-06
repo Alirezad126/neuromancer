@@ -25,39 +25,45 @@ keywords = [
     "Data-driven control",
 ]
 
-
-
 license = { text = "BSD-2-Clause" }
 classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Scientific/Engineering :: Physics",
     "License :: OSI Approved :: BSD License"
 ]
+
+# Key fixes:
+# - mlflow pin split by Python version to avoid old pyarrow on 3.12
+# - allow newer numpy/networkx to avoid Colab conflicts
+# - ensure a PyArrow with wheels exists on 3.12
 dependencies = [
     "dill",
     "graphviz",
     "matplotlib",
-    "mlflow==2.5.0",
-    "networkx==3.0.0",
-    "numpy==1.26.0",
+    "mlflow==2.5.0; python_version < '3.12'",
+    "mlflow>=2.14; python_version >= '3.12'",
+    "pyarrow>=14; python_version >= '3.12'",
+    "networkx>=3.0,<4",
+    "numpy>=1.26",
     "pandas",
-    "plum_dispatch==1.7.3",
+    "plum_dispatch>=1.7.3,<2",
     "scikit_learn",
     "scipy",
     "six",
-    "pydot==1.4.2",
+    "pydot>=1.4.2,<2",
     "pyts",
     "torch",
     "torchdiffeq",
-    "toml", 
-    "lightning", 
-    "cvxpy", 
-    "cvxpylayers", 
-    "casadi", 
-    "wandb", 
+    "toml",
+    "lightning",
+    "cvxpy",
+    "cvxpylayers",
+    "casadi",
+    "wandb",
     "torchsde"
 ]
 
